@@ -40,8 +40,6 @@ export const UpdateProfileForm = () => {
     setIsLoading(true);
     try {
       const { data: updatedUser } = await api.put('/auth/profile', data);
-      
-      // Manually trigger a session update
       await update({
         ...session,
         user: {

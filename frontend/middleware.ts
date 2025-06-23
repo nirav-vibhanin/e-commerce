@@ -8,9 +8,19 @@ export default withAuth(
     const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
 
-    // If user is not admin and trying to access admin routes, redirect to home
-    if (pathname.startsWith('/admin') && token?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', req.url));
+    // If user is admin and tries to access a non-admin page,
+    // redirect them to the admin dashboard.
+    // This handles the redirect immediately after login.
+    if (token?.role === "admin" && !pathname.startsWith("/admin-dashboard")) {
+        // Allow access to API routes and the main page
+        if (pathname.startsWith("/api") || pathname === "/") return NextResponse.next();
+      return NextResponse.redirect(new URL("/admin-dashboard", req.url));
+    }
+    
+    // If user is not admin and tries to access an admin page,
+    // redirect them to their user dashboard.
+    if (token?.role !== "admin" && pathname.startsWith("/admin-dashboard")) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   },
   {
@@ -22,5 +32,5 @@ export default withAuth(
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/orders/:path*'],
+  matcher: ['/dashboard/:path*', '/admin-dashboard/:path*'],
 }; 

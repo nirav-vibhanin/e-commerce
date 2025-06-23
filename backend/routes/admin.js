@@ -7,38 +7,30 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require admin authorization
 router.use(protect, authorize('admin'));
 
-// @desc    Get admin dashboard statistics
-// @route   GET /api/admin/stats
-// @access  Private/Admin
 router.get('/stats', async (req, res) => {
   try {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfYear = new Date(today.getFullYear(), 0, 1);
 
-    // User statistics
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
     const newUsersThisMonth = await User.countDocuments({
       createdAt: { $gte: startOfMonth }
     });
 
-    // Product statistics
     const totalProducts = await Product.countDocuments({ isActive: true });
     const lowStockProducts = await Product.countDocuments({
       stock: { $lte: 10 },
       isActive: true
     });
 
-    // Order statistics
     const totalOrders = await Order.countDocuments();
     const pendingOrders = await Order.countDocuments({ orderStatus: 'Pending' });
     const deliveredOrders = await Order.countDocuments({ orderStatus: 'Delivered' });
 
-    // Revenue statistics
     const totalRevenue = await Order.aggregate([
       { $match: { orderStatus: { $in: ['Delivered', 'Shipped'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
@@ -102,9 +94,6 @@ router.get('/orders/recent', async (req, res) => {
   }
 });
 
-// @desc    Get low stock products
-// @route   GET /api/admin/products/low-stock
-// @access  Private/Admin
 router.get('/products/low-stock', async (req, res) => {
   try {
     const lowStockProducts = await Product.find({
@@ -128,9 +117,6 @@ router.get('/products/low-stock', async (req, res) => {
   }
 });
 
-// @desc    Get all products for admin management
-// @route   GET /api/admin/products
-// @access  Private/Admin
 router.get('/products', [
   query('search').optional().trim(),
   query('category').optional().trim(),
@@ -157,7 +143,6 @@ router.get('/products', [
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build query
     const query = {};
     if (search) {
       query.$text = { $search: search };
@@ -196,9 +181,6 @@ router.get('/products', [
   }
 });
 
-// @desc    Get all orders for admin management
-// @route   GET /api/admin/orders
-// @access  Private/Admin
 router.get('/orders', [
   query('status').optional().isIn(['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled']),
   query('page').optional().isInt({ min: 1 }),
@@ -213,7 +195,7 @@ router.get('/orders', [
       });
     }
 
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Build query
@@ -269,10 +251,15 @@ router.get('/users', [
     const { role, isActive, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build query
     const query = {};
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (req.query.search) {
+      query.$or = [
+        { name: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
 
     const users = await User.find(query)
       .select('-password')
@@ -301,9 +288,6 @@ router.get('/users', [
   }
 });
 
-// @desc    Update user role (Admin only)
-// @route   PUT /api/admin/users/:id/role
-// @access  Private/Admin
 router.put('/users/:id/role', [
   body('role').isIn(['user', 'admin']).withMessage('Role must be either user or admin')
 ], async (req, res) => {
@@ -325,7 +309,6 @@ router.put('/users/:id/role', [
       });
     }
 
-    // Prevent admin from changing their own role
     if (user._id.toString() === req.user.id) {
       return res.status(400).json({
         success: false,
@@ -356,9 +339,6 @@ router.put('/users/:id/role', [
   }
 });
 
-// @desc    Toggle user active status (Admin only)
-// @route   PUT /api/admin/users/:id/toggle-status
-// @access  Private/Admin
 router.put('/users/:id/toggle-status', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -370,7 +350,6 @@ router.put('/users/:id/toggle-status', async (req, res) => {
       });
     }
 
-    // Prevent admin from deactivating themselves
     if (user._id.toString() === req.user.id) {
       return res.status(400).json({
         success: false,

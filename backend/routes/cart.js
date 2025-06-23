@@ -30,36 +30,16 @@ const router = express.Router();
 router.get('/', protect, async (req, res) => {
   try {
     let cart = await Cart.findOne({ user: req.user.id })
-      .populate('items.product', 'name price images stock isActive');
+      .populate('items.product', 'name price image stock');
 
     if (!cart) {
-      // Create empty cart if it doesn't exist
-      cart = await Cart.create({
-        user: req.user.id,
-        items: []
-      });
+      cart = await Cart.create({ user: req.user.id, items: [] });
     }
 
-    // Filter out inactive products and update cart
-    const validItems = cart.items.filter(item => 
-      item.product && item.product.isActive
-    );
-
-    if (validItems.length !== cart.items.length) {
-      cart.items = validItems;
-      await cart.save();
-    }
-
-    res.json({
-      success: true,
-      data: cart
-    });
+    res.json(cart);
   } catch (error) {
-    console.error('Get cart error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    console.error('Error fetching cart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -90,71 +70,53 @@ router.get('/', protect, async (req, res) => {
  *         description: Item added to cart
  */
 router.post('/items', protect, [
-  body('productId').isMongoId().withMessage('Valid product ID is required'),
+  body('productId').notEmpty().withMessage('Product ID is required'),
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
 ], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
-      });
-    }
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
+  try {
     const { productId, quantity } = req.body;
 
-    // Check if product exists and is active
+    // Check if product exists and has enough stock
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res.status(404).json({ message: 'Product not found' });
     }
-
-    if (!product.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product is not available'
-      });
-    }
-
-    // Check stock
     if (product.stock < quantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Only ${product.stock} items available in stock`
-      });
+      return res.status(400).json({ message: 'Not enough stock available' });
     }
 
-    // Get or create cart
     let cart = await Cart.findOne({ user: req.user.id });
     if (!cart) {
-      cart = await Cart.create({
-        user: req.user.id,
-        items: []
-      });
+      cart = new Cart({ user: req.user.id, items: [] });
     }
 
-    // Add item to cart
-    await cart.addItem(productId, quantity, product.price);
+    // Check if product already in cart
+    const existingItem = cart.items.find(item => 
+      item.product.toString() === productId
+    );
+
+    if (existingItem) {
+      // Update quantity if total doesn't exceed stock
+      if (existingItem.quantity + quantity > product.stock) {
+        return res.status(400).json({ message: 'Cannot exceed available stock' });
+      }
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({ product: productId, quantity });
+    }
+
     await cart.save();
+    await cart.populate('items.product', 'name price image stock');
 
-    // Populate product details
-    await cart.populate('items.product', 'name price images stock');
-
-    res.json({
-      success: true,
-      data: cart,
-      message: 'Item added to cart successfully'
-    });
+    res.json(cart);
   } catch (error) {
-    console.error('Add to cart error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during adding item to cart'
-    });
+    console.error('Error adding to cart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -191,69 +153,45 @@ router.post('/items', protect, [
 router.put('/items/:productId', protect, [
   body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
 ], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
-      });
-    }
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
+  try {
     const { productId } = req.params;
     const { quantity } = req.body;
 
-    // Check if product exists and is active
+    // Check product stock
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res.status(404).json({ message: 'Product not found' });
     }
-
-    if (!product.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product is not available'
-      });
-    }
-
-    // Check stock
     if (product.stock < quantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Only ${product.stock} items available in stock`
-      });
+      return res.status(400).json({ message: 'Not enough stock available' });
     }
 
-    // Get cart
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cart not found'
-      });
+      return res.status(404).json({ message: 'Cart not found' });
     }
 
-    // Update quantity
-    await cart.updateQuantity(productId, quantity);
+    const itemIndex = cart.items.findIndex(item => 
+      item.product.toString() === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: 'Item not found in cart' });
+    }
+
+    cart.items[itemIndex].quantity = quantity;
     await cart.save();
+    await cart.populate('items.product', 'name price image stock');
 
-    // Populate product details
-    await cart.populate('items.product', 'name price images stock');
-
-    res.json({
-      success: true,
-      data: cart,
-      message: 'Cart updated successfully'
-    });
+    res.json(cart);
   } catch (error) {
-    console.error('Update cart error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during cart update'
-    });
+    console.error('Error updating cart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -277,35 +215,22 @@ router.put('/items/:productId', protect, [
  */
 router.delete('/items/:productId', protect, async (req, res) => {
   try {
-    const { productId } = req.params;
-
-    // Get cart
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cart not found'
-      });
+      return res.status(404).json({ message: 'Cart not found' });
     }
 
-    // Remove item
-    await cart.removeItem(productId);
+    cart.items = cart.items.filter(item => 
+      item.product.toString() !== req.params.productId
+    );
+
     await cart.save();
+    await cart.populate('items.product', 'name price image stock');
 
-    // Populate product details
-    await cart.populate('items.product', 'name price images stock');
-
-    res.json({
-      success: true,
-      data: cart,
-      message: 'Item removed from cart successfully'
-    });
+    res.json(cart);
   } catch (error) {
-    console.error('Remove from cart error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during removing item from cart'
-    });
+    console.error('Error removing from cart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -325,26 +250,16 @@ router.delete('/', protect, async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user.id });
     if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cart not found'
-      });
+      return res.status(404).json({ message: 'Cart not found' });
     }
 
-    await cart.clearCart();
+    cart.items = [];
     await cart.save();
 
-    res.json({
-      success: true,
-      data: cart,
-      message: 'Cart cleared successfully'
-    });
+    res.json(cart);
   } catch (error) {
-    console.error('Clear cart error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during clearing cart'
-    });
+    console.error('Error clearing cart:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

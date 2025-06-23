@@ -97,7 +97,6 @@ const productSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for discounted price
 productSchema.virtual('discountedPrice').get(function() {
   if (this.discount > 0) {
     return this.price - (this.price * this.discount / 100);
@@ -105,7 +104,6 @@ productSchema.virtual('discountedPrice').get(function() {
   return this.price;
 });
 
-// Index for search functionality
 productSchema.index({
   name: 'text',
   description: 'text',
@@ -114,21 +112,18 @@ productSchema.index({
   tags: 'text'
 });
 
-// Soft delete method
 productSchema.methods.softDelete = function() {
   this.isDeleted = true;
   this.deletedAt = new Date();
   return this.save();
 };
 
-// Restore method
 productSchema.methods.restore = function() {
   this.isDeleted = false;
   this.deletedAt = undefined;
   return this.save();
 };
 
-// Pre-find middleware to exclude deleted products
 productSchema.pre(/^find/, function(next) {
   if (this.getQuery().includeDeleted !== true) {
     this.find({ isDeleted: { $ne: true } });

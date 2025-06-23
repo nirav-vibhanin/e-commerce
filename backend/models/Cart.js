@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
 
+const cartItemSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  }
+});
+
 const cartSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -7,27 +20,7 @@ const cartSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  items: [{
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: [1, 'Quantity must be at least 1'],
-      default: 1
-    },
-    price: {
-      type: Number,
-      required: true
-    },
-    addedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  items: [cartItemSchema],
   total: {
     type: Number,
     default: 0
@@ -41,24 +34,24 @@ const cartSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Calculate cart totals
 cartSchema.methods.calculateTotals = function() {
-  this.total = this.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  this.total = this.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   this.itemCount = this.items.reduce((sum, item) => sum + item.quantity, 0);
   this.lastUpdated = new Date();
   return this;
 };
 
-// Add item to cart
 cartSchema.methods.addItem = function(productId, quantity = 1, price) {
   const existingItem = this.items.find(item => item.product.toString() === productId.toString());
   
   if (existingItem) {
     existingItem.quantity += quantity;
-    existingItem.price = price; // Update price in case it changed
+    existingItem.price = price;
   } else {
     this.items.push({
       product: productId,
@@ -70,13 +63,11 @@ cartSchema.methods.addItem = function(productId, quantity = 1, price) {
   return this.calculateTotals();
 };
 
-// Remove item from cart
 cartSchema.methods.removeItem = function(productId) {
   this.items = this.items.filter(item => item.product.toString() !== productId.toString());
   return this.calculateTotals();
 };
 
-// Update item quantity
 cartSchema.methods.updateQuantity = function(productId, quantity) {
   const item = this.items.find(item => item.product.toString() === productId.toString());
   if (item) {
@@ -88,7 +79,6 @@ cartSchema.methods.updateQuantity = function(productId, quantity) {
   return this.calculateTotals();
 };
 
-// Clear cart
 cartSchema.methods.clearCart = function() {
   this.items = [];
   this.total = 0;
@@ -97,14 +87,23 @@ cartSchema.methods.clearCart = function() {
   return this;
 };
 
-// Check if cart is empty
 cartSchema.methods.isEmpty = function() {
   return this.items.length === 0;
 };
 
-// Pre-save middleware to calculate totals
-cartSchema.pre('save', function(next) {
-  this.calculateTotals();
+cartSchema.pre('save', async function(next) {
+  let total = 0;
+  if (this.items.length > 0) {
+    await this.populate('items.product');
+    this.items.forEach(item => {
+      if (item.product) {
+        total += item.product.price * item.quantity;
+      }
+    });
+  }
+  this.total = total;
+  this.itemCount = this.items.reduce((sum, item) => sum + item.quantity, 0);
+  this.lastUpdated = new Date();
   next();
 });
 

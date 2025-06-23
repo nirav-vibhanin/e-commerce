@@ -13,7 +13,6 @@ const router = express.Router();
  *   description: User authentication and profile management
  */
 
-// Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE
@@ -68,7 +67,6 @@ router.post('/register', [
 
     const { name, email, password, phone, address } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -77,11 +75,9 @@ router.post('/register', [
       });
     }
 
-    // If no users exist, the first user to register becomes an admin
     const isFirstAccount = (await User.countDocuments({})) === 0;
     const role = isFirstAccount ? 'admin' : 'user';
 
-    // Create user
     const user = await User.create({
       name,
       email,
@@ -91,7 +87,6 @@ router.post('/register', [
       address
     });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -176,7 +171,6 @@ router.post('/login', [
       });
     }
 
-    // Check if user is active
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
@@ -184,7 +178,6 @@ router.post('/login', [
       });
     }
 
-    // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -193,11 +186,9 @@ router.post('/login', [
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.json({
@@ -422,7 +413,6 @@ router.put('/change-password', protect, [
 
     const user = await User.findById(req.user.id).select('+password');
 
-    // Check current password
     const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({
@@ -431,7 +421,6 @@ router.put('/change-password', protect, [
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -498,7 +487,6 @@ router.post('/create-admin', [
 
     const { name, email, password, phone, address } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -507,7 +495,6 @@ router.post('/create-admin', [
       });
     }
 
-    // Create admin user
     const user = await User.create({
       name,
       email,
@@ -517,7 +504,6 @@ router.post('/create-admin', [
       address
     });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({

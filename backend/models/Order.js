@@ -129,7 +129,6 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate order number
 orderSchema.pre('save', async function(next) {
   if (this.isNew) {
     const date = new Date();
@@ -137,7 +136,6 @@ orderSchema.pre('save', async function(next) {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     
-    // Get count of orders for today
     const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const count = await this.constructor.countDocuments({
       createdAt: { $gte: today }
@@ -148,24 +146,20 @@ orderSchema.pre('save', async function(next) {
   next();
 });
 
-// Virtual for order summary
 orderSchema.virtual('itemCount').get(function() {
   return this.items.reduce((total, item) => total + item.quantity, 0);
 });
 
-// Virtual for order age
 orderSchema.virtual('orderAge').get(function() {
   return Math.floor((Date.now() - this.createdAt) / (1000 * 60 * 60 * 24));
 });
 
-// Method to calculate totals
 orderSchema.methods.calculateTotals = function() {
   this.subtotal = this.items.reduce((total, item) => total + item.total, 0);
   this.total = this.subtotal + this.tax + this.shippingCost - this.discount;
   return this;
 };
 
-// Method to update order status
 orderSchema.methods.updateStatus = function(newStatus, notes = '') {
   this.orderStatus = newStatus;
   
@@ -179,7 +173,6 @@ orderSchema.methods.updateStatus = function(newStatus, notes = '') {
   return this.save();
 };
 
-// Method to check if order can be cancelled
 orderSchema.methods.canBeCancelled = function() {
   const nonCancellableStatuses = ['Shipped', 'Delivered', 'Cancelled'];
   return !nonCancellableStatuses.includes(this.orderStatus);
