@@ -39,8 +39,8 @@ export default function AdminOrderDetailsPage({ params }: { params: { id: string
     getOrderById(id)
       .then((data) => {
         setOrder(data);
-        setTrackingNumber(data.trackingNumber || "");
-        setNotes(data.notes || "");
+        setTrackingNumber((data as any).trackingNumber || "");
+        setNotes((data as any).notes || "");
       })
       .catch(() => setError("Order not found."))
       .finally(() => setLoading(false));
@@ -71,6 +71,12 @@ export default function AdminOrderDetailsPage({ params }: { params: { id: string
       setUpdating(false);
     }
   };
+
+  function isUserObject(user: unknown): user is { _id?: string; name?: string; email?: string } {
+    return typeof user === 'object' && user !== null && (
+      'name' in user || 'email' in user || '_id' in user
+    );
+  }
 
   if (loading) {
     return (
@@ -105,8 +111,10 @@ export default function AdminOrderDetailsPage({ params }: { params: { id: string
             {new Date(order.createdAt).toLocaleDateString()}
           </div>
           <div className="mb-4">
-            <span className="font-semibold">Customer:</span>{" "}
-            {order.user?.name || order.user?.email}
+            <span className="font-semibold">Customer:</span>{' '}
+            {isUserObject(order.user)
+              ? (order.user.name || order.user.email || order.user._id || '-')
+              : (order.user || '-')}
           </div>
           <div className="mb-4">
             <span className="font-semibold">Total:</span>{" "}
@@ -188,10 +196,16 @@ export default function AdminOrderDetailsPage({ params }: { params: { id: string
         <TableBody>
           {order.items.map((item, idx) => (
             <TableRow key={idx}>
-              <TableCell>{item.product.name}</TableCell>
+              <TableCell>
+                {typeof item.product === "object" && item.product !== null && "name" in item.product
+                  ? (item.product as { name?: string }).name || "-"
+                  : typeof item.product === "string"
+                    ? item.product
+                    : "-"}
+              </TableCell>
               <TableCell>{item.quantity}</TableCell>
-              <TableCell>${item.price.toFixed(2)}</TableCell>
-              <TableCell>${(item.price * item.quantity).toFixed(2)}</TableCell>
+              <TableCell>${(item.price || 0).toFixed(2)}</TableCell>
+              <TableCell>${((item.price || 0) * item.quantity).toFixed(2)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -201,15 +215,21 @@ export default function AdminOrderDetailsPage({ params }: { params: { id: string
         <div className="space-y-2">
           <div>
             <span className="font-medium">Subtotal:</span>{" "}
-            ${order.subtotal?.toFixed(2) || (order.total - (order.tax || 0) - (order.shippingCost || 0)).toFixed(2)}
+            {order.subtotal !== undefined
+              ? `$${order.subtotal.toFixed(2)}`
+              : `$${((order.total || 0) - (order.tax || 0) - (order.shippingCost || 0)).toFixed(2)}`}
           </div>
           <div>
             <span className="font-medium">Shipping:</span>{" "}
-            ${order.shippingCost?.toFixed(2) || "0.00"}
+            {order.shippingCost !== undefined
+              ? `$${order.shippingCost.toFixed(2)}`
+              : "0.00"}
           </div>
           <div>
             <span className="font-medium">Tax:</span>{" "}
-            ${order.tax?.toFixed(2) || "0.00"}
+            {order.tax !== undefined
+              ? `$${order.tax.toFixed(2)}`
+              : "0.00"}
           </div>
           <div className="text-lg font-bold">
             <span>Total:</span>{" "}

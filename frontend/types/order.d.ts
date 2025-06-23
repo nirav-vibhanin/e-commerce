@@ -1,10 +1,36 @@
 import { Product } from './product';
 
-export type OrderItem = {
-  product: Product;
+export interface OrderItem {
+  product: string;  // Product ID
   quantity: number;
   price: number;
-};
+  name: string;
+}
+
+export interface Order {
+  _id: string;
+  user: string;  // User ID
+  orderNumber: string;
+  items: OrderItem[];
+  totalAmount: number;
+  orderStatus: 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  shippingAddress: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    phone: string;
+  };
+  paymentMethod: 'Credit Card' | 'Debit Card' | 'PayPal' | 'Cash on Delivery';
+  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+  subtotal: number;
+  tax: number;
+  shippingCost: number;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export type ShippingAddress = {
   street: string;
@@ -13,28 +39,6 @@ export type ShippingAddress = {
   zipCode: string;
   country: string;
   phone: string;
-};
-
-export type Order = {
-  _id: string;
-  user: { _id: string; name: string; email: string };
-  items: OrderItem[];
-  total: number;
-  subtotal: number;
-  tax: number;
-  shippingCost: number;
-  discount?: number;
-  orderStatus: 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
-  paymentMethod: string;
-  trackingNumber?: string;
-  notes?: string;
-  estimatedDelivery?: string;
-  deliveredAt?: string;
-  cancelledAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  shippingAddress: ShippingAddress;
 };
 
 export type OrderListResponse = {

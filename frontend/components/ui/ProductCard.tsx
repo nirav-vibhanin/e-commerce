@@ -24,13 +24,13 @@ interface ProductCardProps {
 
 export function ProductCard({ product, isAdmin, onEdit, onDelete }: ProductCardProps) {
   return (
-    <Card className="group overflow-hidden bg-white hover:shadow-lg transition-shadow duration-200 flex flex-col h-full max-w-[300px] mx-auto">
+    <Card className="w-full min-w-[200px] h-full flex flex-col bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
       <Link href={`/products/${product._id}`} className="flex-none">
-        <div className="relative w-full pt-[100%] bg-gray-100">
+        <div className="relative aspect-[4/3] w-full bg-gray-100">
           <CustomImage
-            src={product.image}
+            src="/assets/images/image2.jpg"
             alt={product.name}
-            className="absolute inset-0 w-full h-full object-contain p-4"
+            className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
           />
           {product.stock <= 0 && (
             <div className="absolute top-2 right-2 z-10">
@@ -38,40 +38,42 @@ export function ProductCard({ product, isAdmin, onEdit, onDelete }: ProductCardP
             </div>
           )}
         </div>
-        <CardContent className="p-4 pb-2">
-          <div className="space-y-0.5">
-            <h3 className="font-medium text-sm line-clamp-2 min-h-[32px] group-hover:text-blue-600 transition-colors">
-              {product.name}
-            </h3>
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-bold text-gray-900">${product.price.toFixed(2)}</p>
-              <Badge className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 border border-gray-300 rounded">{product.category}</Badge>
-            </div>
-          </div>
-        </CardContent>
       </Link>
-      <CardFooter className="p-4 pt-2 mt-auto">
+      <CardContent className="flex-grow p-3">
+        <div className="space-y-1">
+          <h3 className="font-medium text-sm line-clamp-2 min-h-[2rem] hover:text-blue-600 transition-colors">
+            {product.name}
+          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-base font-bold text-gray-900">${product.price.toFixed(2)}</p>
+            <Badge className="text-[10px] px-1.5 py-0.5">{product.category}</Badge>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="p-3 pt-0">
         {isAdmin ? (
           <div className="flex gap-2 w-full">
             <button
               onClick={onEdit}
-              className="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm font-medium hover:bg-blue-600 transition-colors"
+              className="flex-1 bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-600 transition-colors"
             >
               Edit
             </button>
             <button
               onClick={onDelete}
-              className="flex-1 bg-red-500 text-white px-3 py-2 rounded text-sm font-medium hover:bg-red-600 transition-colors"
+              className="flex-1 bg-red-500 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-red-600 transition-colors"
             >
               Delete
             </button>
           </div>
         ) : (
-          <AddToCartButton
-            productId={product._id}
-            stock={product.stock}
-            className="w-full"
-          />
+          <div className="w-full">
+            <AddToCartButton
+              productId={product._id}
+              stock={product.stock}
+              className="w-full text-sm py-1"
+            />
+          </div>
         )}
       </CardFooter>
     </Card>

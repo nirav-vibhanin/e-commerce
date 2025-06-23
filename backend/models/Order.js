@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+// Function to generate order number
+async function generateOrderNumber() {
+  const date = new Date();
+  const year = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  
+  const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const count = await mongoose.model('Order').countDocuments({
+    createdAt: { $gte: today }
+  });
+  
+  return `ORD${year}${month}${day}${(count + 1).toString().padStart(4, '0')}`;
+}
+
 const orderSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -9,7 +24,9 @@ const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
     unique: true,
-    required: true
+    default: function() {
+      return `TEMP-${new Date().getTime()}-${Math.random().toString(36).substring(7)}`;
+    }
   },
   items: [{
     product: {
@@ -129,21 +146,15 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-orderSchema.pre('save', async function(next) {
-  if (this.isNew) {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    
-    const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const count = await this.constructor.countDocuments({
-      createdAt: { $gte: today }
-    });
-    
-    this.orderNumber = `ORD${year}${month}${day}${(count + 1).toString().padStart(4, '0')}`;
+orderSchema.pre('validate', async function(next) {
+  try {
+    if (!this.orderNumber || this.orderNumber.startsWith('TEMP-')) {
+      this.orderNumber = await generateOrderNumber();
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
 });
 
 orderSchema.virtual('itemCount').get(function() {

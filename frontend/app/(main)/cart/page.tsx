@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getCart, updateCartItem, removeFromCart, clearCart } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -151,42 +151,42 @@ export default function CartPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
-          {cart.items.map((item) => (
-            <Card key={item.product._id} className="p-4">
+          {cart.items.map((item, idx) => (
+            <Card key={item.product?._id || String(item.product) || String(idx)} className="p-4">
               <div className="flex items-center gap-4">
                 <div className="w-24 h-24 relative">
                   <CustomImage
-                    src={item.product.image}
-                    alt={item.product.name}
+                    src={item.product?.image || "/assets/images/imageone.jpg"}
+                    alt={item.product?.name || "Product image"}
                     className="rounded-md object-cover"
                   />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">{item.product.name}</h3>
-                  <p className="text-gray-600 mb-2">${item.product.price.toFixed(2)}</p>
+                  <h3 className="font-semibold text-lg mb-1">{item.product?.name || "Product"}</h3>
+                  <p className="text-gray-600 mb-2">${(item.product?.price || 0).toFixed(2)}</p>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        disabled={updating === item.product._id || item.quantity <= 1}
-                        onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
+                        disabled={updating === (item.product?._id || "") || item.quantity <= 1}
+                        onClick={() => handleQuantityChange(item.product?._id || "", item.quantity - 1)}
                       >
                         -
                       </Button>
                       <Input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => handleQuantityChange(item.product._id, parseInt(e.target.value))}
+                        onChange={(e) => handleQuantityChange(item.product?._id || "", parseInt(e.target.value))}
                         className="w-16 text-center"
                         min={1}
-                        max={item.product.stock}
+                        max={item.product?.stock || 1}
                       />
                       <Button
                         variant="outline"
                         size="icon"
-                        disabled={updating === item.product._id || item.quantity >= item.product.stock}
-                        onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
+                        disabled={updating === (item.product?._id || "") || item.quantity >= (item.product?.stock || 1)}
+                        onClick={() => handleQuantityChange(item.product?._id || "", item.quantity + 1)}
                       >
                         +
                       </Button>
@@ -207,7 +207,7 @@ export default function CartPage() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleRemoveItem(item.product._id)}
+                            onClick={() => handleRemoveItem(item.product?._id || String(item.product))}
                             className="bg-red-500 hover:bg-red-600"
                           >
                             Remove
@@ -219,11 +219,11 @@ export default function CartPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-lg">
-                    ${(item.product.price * item.quantity).toFixed(2)}
+                    ${((item.product?.price || 0) * item.quantity).toFixed(2)}
                   </p>
-                  {item.quantity >= item.product.stock && (
+                  {item.quantity >= (item.product?.stock || 1) && (
                     <Badge variant="secondary" className="mt-2">
-                      Max Quantity
+                      Max stock reached
                     </Badge>
                   )}
                 </div>
@@ -251,14 +251,21 @@ export default function CartPage() {
                 </div>
               </div>
             </div>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleCheckout}
-              disabled={cart.items.length === 0}
-            >
-              Proceed to Checkout
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                variant="outline"
+                className="sm:flex-1"
+                onClick={() => router.push('/products')}
+              >
+                Continue Shopping
+              </Button>
+              <Button
+                className="sm:flex-1"
+                onClick={() => router.push('/checkout')}
+              >
+                Proceed to Checkout
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

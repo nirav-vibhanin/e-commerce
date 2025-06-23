@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "./ui/button";
 import { CartIcon } from "./ui/CartIcon";
+import { useRouter } from "next/navigation";
 
 // Home icon SVG
 const HomeIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,6 +34,7 @@ const HomeIcon = (props: React.SVGProps<SVGSVGElement>) => (
 const HeaderComponent = () => {
   const { data: session, status } = useSession();
   const user = session?.user;
+  const router = useRouter();
 
   // Determine dashboard link
   let dashboardLink = "/";
@@ -66,12 +68,15 @@ const HeaderComponent = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>{user?.name || "User"}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard/profile">Profile</Link>
+                    <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+                      Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-                      Logout
+                    <DropdownMenuItem onClick={() => router.push('/dashboard/orders')}>
+                      Orders
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut()}>
+                      Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

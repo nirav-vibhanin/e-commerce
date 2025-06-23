@@ -27,8 +27,7 @@ const productSchema = new mongoose.Schema({
     enum: ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Beauty', 'Toys', 'Other']
   },
   images: [{
-    type: String,
-    required: [true, 'Please add at least one image']
+    type: String
   }],
   stock: {
     type: Number,

@@ -68,7 +68,6 @@ router.post('/', protect, [
       });
     }
 
-    // Get user's cart
     const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
     
     if (!cart || cart.items.length === 0) {
@@ -78,7 +77,6 @@ router.post('/', protect, [
       });
     }
 
-    // Validate stock and calculate totals
     const orderItems = [];
     let subtotal = 0;
 
@@ -109,19 +107,17 @@ router.post('/', protect, [
         total: itemTotal
       });
 
-      // Update product stock
       await Product.findByIdAndUpdate(product._id, {
         $inc: { stock: -cartItem.quantity }
       });
     }
 
-    // Calculate totals
-    const tax = subtotal * 0.1; // 10% tax
-    const shippingCost = subtotal > 100 ? 0 : 10; // Free shipping over $100
+    const tax = subtotal * 0.1;
+    const shippingCost = subtotal > 100 ? 0 : 10;
     const total = subtotal + tax + shippingCost;
 
-    // Create order
-    const order = await Order.create({
+    // Create the order with a temporary order number
+    const order = new Order({
       user: req.user.id,
       items: orderItems,
       shippingAddress: req.body.shippingAddress,
@@ -135,10 +131,13 @@ router.post('/', protect, [
       estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
     });
 
-    // Clear cart
+    // Save the order - this will trigger the pre-validate hook
+    await order.save();
+
+    // Clear the cart after successful order creation
     await cart.clearCart();
 
-    // Populate order details
+    // Populate the order with product details
     await order.populate('items.product', 'name images');
 
     res.status(201).json({
@@ -147,9 +146,12 @@ router.post('/', protect, [
     });
   } catch (error) {
     console.error('Create order error:', error);
+    // Send a more detailed error message
     res.status(500).json({
       success: false,
-      message: 'Server error during order creation'
+      message: 'Server error during order creation',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -315,7 +317,6 @@ router.put('/:id/cancel', protect, [
       });
     }
 
-    // Check if user owns this order
     if (order.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -323,7 +324,6 @@ router.put('/:id/cancel', protect, [
       });
     }
 
-    // Check if order can be cancelled
     if (!order.canBeCancelled()) {
       return res.status(400).json({
         success: false,
@@ -331,14 +331,12 @@ router.put('/:id/cancel', protect, [
       });
     }
 
-    // Restore product stock
     for (const item of order.items) {
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: item.quantity }
       });
     }
 
-    // Update order status
     await order.updateStatus('Cancelled', req.body.reason);
 
     res.json({
@@ -384,7 +382,6 @@ router.get('/admin/all', protect, authorize('admin'), [
     const { status, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build query
     const query = {};
     if (status) query.orderStatus = status;
 
@@ -471,7 +468,6 @@ router.put('/:id/status', protect, authorize('admin'), [
       });
     }
 
-    // Update order
     order.orderStatus = status;
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (notes) order.notes = notes;
@@ -519,7 +515,6 @@ router.get('/admin/stats', protect, authorize('admin'), async (req, res) => {
     const pendingOrders = await Order.countDocuments({ orderStatus: 'Pending' });
     const deliveredOrders = await Order.countDocuments({ orderStatus: 'Delivered' });
 
-    // Revenue
     const totalRevenue = await Order.aggregate([
       { $match: { orderStatus: { $in: ['Delivered', 'Shipped'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
@@ -530,7 +525,6 @@ router.get('/admin/stats', protect, authorize('admin'), async (req, res) => {
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
 
-    // Recent orders
     const recentOrders = await Order.find()
       .sort({ createdAt: -1 })
       .limit(5)

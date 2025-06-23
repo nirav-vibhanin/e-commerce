@@ -139,17 +139,18 @@ const ProductsPage = () => {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {products.map((product) => (
-                <ProductCard key={product._id} product={product} />
-              ))}
+          ) : products.length === 0 ? (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-gray-900">No products found</h3>
+              <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
             </div>
-          )}
-
-          {products.length === 0 && !loading && (
-            <div className="text-center py-10">
-              <p className="text-gray-500 text-lg">No products found</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {products.map((product) => (
+                <div key={product._id} className="w-full">
+                  <ProductCard product={product} />
+                </div>
+              ))}
             </div>
           )}
         </div>

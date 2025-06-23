@@ -75,37 +75,30 @@ router.get('/', [
       limit = 12
     } = req.query;
 
-    // Build query
     const query = { isActive: true };
 
-    // Search functionality
     if (search) {
       query.$text = { $search: search };
     }
 
-    // Category filter
     if (category) {
       query.category = category;
     }
 
-    // Price range filter
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = parseFloat(minPrice);
       if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
-    // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Execute query
     const products = await Product.find(query)
       .sort({ [sort]: order === 'desc' ? -1 : 1 })
       .skip(skip)
       .limit(parseInt(limit))
       .populate('createdBy', 'name');
 
-    // Get total count for pagination
     const total = await Product.countDocuments(query);
 
     res.json({
@@ -248,7 +241,6 @@ router.post('/', protect, authorize('admin'), [
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('category').isIn(['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Beauty', 'Toys', 'Other']).withMessage('Invalid category'),
   body('stock').isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
-  body('images').isArray({ min: 1 }).withMessage('At least one image is required'),
   body('brand').optional().trim(),
   body('sku').optional().trim(),
   body('weight').optional().isFloat({ min: 0 }).withMessage('Weight must be a positive number'),
@@ -316,7 +308,6 @@ router.put('/:id', protect, authorize('admin'), [
   body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('category').optional().isIn(['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Beauty', 'Toys', 'Other']).withMessage('Invalid category'),
   body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
-  body('images').optional().isArray({ min: 1 }).withMessage('At least one image is required'),
   body('brand').optional().trim(),
   body('sku').optional().trim(),
   body('weight').optional().isFloat({ min: 0 }).withMessage('Weight must be a positive number'),

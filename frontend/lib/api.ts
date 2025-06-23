@@ -269,7 +269,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
 export const getOrders = async (params: { 
   page?: number; 
   limit?: number;
-  status?: string;
+  orderStatus?: string;
 } = {}): Promise<OrderListResponse> => {
   const response = await api.get('/orders', { params });
   return response.data;
@@ -290,7 +290,19 @@ export const getOrderById = async (id: string): Promise<Order> => {
   return response.data.data;
 };
 
-export const createOrder = async (orderData: Partial<Order>): Promise<Order> => {
+export const createOrder = async (orderData: {
+  items: { product: string; quantity: number }[];
+  shippingAddress: {
+    fullName: string;
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    phone: string;
+  };
+  paymentMethod: string;
+}): Promise<Order> => {
   const response = await api.post('/orders', orderData);
   return response.data.data;
 };
